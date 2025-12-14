@@ -1,29 +1,19 @@
-import { GoogleGenAI } from "@google/genai";
 import { TrainingAction, JustificationInput, JustificationResult } from "../types";
-
-const getClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) return null;
-  return new GoogleGenAI({ apiKey });
-};
 
 export const generateConsultantReport = async (
   action: TrainingAction,
   input: JustificationInput,
   result: JustificationResult
 ): Promise<string> => {
-  const client = getClient();
-  if (!client) return "Error: API Key no configurada.";
-
   const systemInstruction = `
-    Rol: Eres un Asistente Experto en Justificación Económica de la Formación Profesional para el Empleo (FP€) en España.
-    
-    Misión: Analizar la justificación económica de una acción formativa, validar límites presupuestarios y explicar desviaciones.
-    
+    Rol: Eres un Asistente Experto en Justificación Económica de la Formación Profesional para el Empleo (FPE) en España.
+
+    Misión: Analizar la justificación económica de una acción formativa, validar límites presupuestarios y explicar el cumplimiento de las Reglas de Negocio.
+
     Reglas de Negocio Clave:
-    1. Importe Financiable Real = Horas * Alumnos Finalizados * Módulo Económico.
-    2. Regla del 10% (Costes Indirectos): El Límite Máximo Indirecto (LMI) es el 10% del Coste Total Justificado (Directos + Indirectos INPUT). Si el indirecto imputado supera el LMI, se recorta al LMI.
-    
+    1. Importe Financiable Real = Horas × Alumnos Finalizados × Módulo Económico.
+    2. Regla del 10% (Costes Indirectos): El Límite Máximo Indirecto (LMI) es el 10% del Coste Total Justificado (CTJ).
+
     Tono: Profesional, técnico, preciso y resolutivo (como un auditor).
   `;
 
@@ -31,42 +21,58 @@ export const generateConsultantReport = async (
     Genera un informe ejecutivo de justificación para la siguiente acción:
 
     DATOS DE LA ACCIÓN:
-    - Expediente: ${action.expediente}
-    - Acción: ${action.codigoAccion} - ${action.denominacion}
-    - Horas: ${action.horas}
-    - Alumnos (Concedidos/Finalizados): ${action.alumnosConcedidos} / ${input.alumnosFinalizados}
-    - Módulo: ${action.moduloEconomico} €/h
-    
-    DATOS ECONÓMICOS:
-    - Total Costes Directos: ${result.totalCostesDirectos.toFixed(2)} €
-    - Coste Indirecto Solicitado: ${result.totalCostesIndirectosJustificados.toFixed(2)} €
-    - Límite Indirectos (10% CTJ): ${result.limiteCostesIndirectos.toFixed(2)} €
-    
-    RESULTADO LIQUIDACIÓN:
-    - Importe Máximo Financiable (Real): ${result.importeFinanciableReal.toFixed(2)} €
-    - Coste Indirecto Reconocido: ${result.costeIndirectoReconocido.toFixed(2)} €
-    - Total Costes Reconocidos: ${result.totalCostesReconocidos.toFixed(2)} €
-    - Desviación (Financiable - Reconocido): ${result.desviacion.toFixed(2)} € (Negativo = Exceso de Gasto)
-    - Estado: ${result.estado}
+    - Código: ${action.code}
+    - Denominación: ${action.denomination}
+    - Horas: ${action.hours}
+    - Alumnos finalizados: ${action.finishedStudents}
+    - Módulo económico: ${action.economicModule}€
 
-    Estructura del Informe (Texto plano, máx 150 palabras):
-    1. ALUMNOS: Valida si la bajada de alumnos (si la hay) ha reducido el importe máximo financiable.
-    2. INDIRECTOS: Confirma si se ha aplicado la regla del 10% para recortar el gasto indirecto (comparando Solicitado vs Límite).
-    3. CONCLUSIÓN: Estado final (OK/Excedido). Si hay desviación negativa, indica cuánto gasto no es subvencionable.
+    DATOS DE LA JUSTIFICACIÓN:
+    - Costes Directos: ${input.directCosts}€
+    - Costes Indirectos: ${input.indirectCosts}€
+    - Coste Total Justificado: ${result.totalJustified}€
+    - Importe Financiable Real: ${result.realFinanceable}€
+    - Límite Máximo Indirecto: ${result.indirectLimit}€
+    - Diferencia (Indirectos - Límite): ${result.difference}€
+    - ¿Cumple la regla del 10%? ${result.compliesWithRule ? "SÍ" : "NO"}
+
+    Estructura del informe:
+    1. Resumen ejecutivo
+    2. Análisis de costes
+    3. Validación de la regla del 10%
+    4. Importe financiable
+    5. Conclusiones y recomendaciones
   `;
 
   try {
-    const response = await client.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        systemInstruction: systemInstruction,
-        temperature: 0.3, // Low temperature for factual/technical consistency
+    // Call our Vercel Function proxy instead of Gemini API directly
+    const response = await fetch('/api/gemini', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        prompt: systemInstruction + '\n\n' + prompt,
+        model: 'gemini-1.5-flash'
+      })
     });
-    return response.text || "No se pudo generar el análisis.";
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to generate report');
+    }
+
+    const data = await response.json();
+    
+    // Extract text from Gemini response
+    if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+      return data.candidates[0].content.parts[0].text;
+    }
+    
+    throw new Error('Invalid response format from API');
+    
   } catch (error) {
-    console.error("Gemini Error:", error);
-    return "Error al conectar con el servicio de análisis inteligente.";
+    console.error('Error generating report:', error);
+    throw error;
   }
 };
