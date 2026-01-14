@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Calculator, AlertTriangle, Info, Activity, Wallet, CheckCheck, Calendar, Percent, StickyNote, RefreshCw, TrendingDown, TrendingUp, NotebookPen } from 'lucide-react';
+import { X, Save, Calculator, AlertTriangle, Info, Activity, Wallet, CheckCheck, Calendar, Percent, StickyNote, RefreshCw, TrendingDown, TrendingUp, NotebookPen, AlertCircle } from 'lucide-react';
 import { TrainingAction, JustificationInput, CATEGORIAS_COSTES, JustificationResult, SituacionAccion } from '../types';
 import { calculateJustification, formatCurrency } from '../utils/logic';
 
@@ -24,7 +24,7 @@ export const CostEditor: React.FC<CostEditorProps> = ({ action, existingInput, o
   });
   const [costesIndirectos, setCostesIndirectos] = useState(existingInput?.costesIndirectos ?? 0);
   const [importePagado, setImportePagado] = useState(existingInput?.importePagado ?? 0);
-  const [notas, setNotas] = useState(existingInput?.notas || '');
+  const [observaciones, setObservaciones] = useState(existingInput?.observaciones || '');
 
   const [preview, setPreview] = useState<JustificationResult | null>(null);
 
@@ -46,10 +46,10 @@ export const CostEditor: React.FC<CostEditorProps> = ({ action, existingInput, o
         costesDirectos,
         costesIndirectos,
         importePagado,
-        notas
+        observaciones
     };
     setPreview(calculateJustification(action, tempInput));
-  }, [situacion, fechaInicio, fechaFin, alumnosFinalizados, costesDirectos, costesIndirectos, importePagado, action, notas]);
+  }, [situacion, fechaInicio, fechaFin, alumnosFinalizados, costesDirectos, costesIndirectos, importePagado, action, observaciones]);
 
   const handleDirectChange = (key: keyof typeof costesDirectos, val: string) => {
     setCostesDirectos(prev => ({ ...prev, [key]: parseFloat(val) || 0 }));
@@ -93,7 +93,7 @@ export const CostEditor: React.FC<CostEditorProps> = ({ action, existingInput, o
       costesDirectos,
       costesIndirectos,
       importePagado,
-      notas
+      observaciones
     });
     onClose();
   };
@@ -293,17 +293,17 @@ export const CostEditor: React.FC<CostEditorProps> = ({ action, existingInput, o
                )}
             </div>
             
-            {/* NOTES FIELD */}
+            {/* OBSERVACIONES FIELD */}
             <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 shadow-sm relative group">
                 <div className="absolute top-0 right-0 w-8 h-8 bg-gradient-to-bl from-yellow-200/50 to-transparent rounded-bl-xl pointer-events-none"></div>
                 <h3 className="font-semibold text-yellow-900 mb-2 flex items-center gap-2 text-sm">
-                    <NotebookPen className="w-4 h-4" /> Cuaderno de Bitácora / Notas
+                    <NotebookPen className="w-4 h-4" /> Observaciones
                 </h3>
                 <textarea
-                    value={notas}
-                    onChange={(e) => setNotas(e.target.value)}
+                    value={observaciones}
+                    onChange={(e) => setObservaciones(e.target.value)}
                     className="w-full bg-white/50 border border-yellow-300 rounded-md p-3 text-sm text-slate-700 focus:ring-2 focus:ring-yellow-400 focus:bg-white outline-none resize-y min-h-[80px]"
-                    placeholder="Escribe aquí observaciones, recordatorios de facturas pendientes o justificaciones de desviaciones..."
+                    placeholder="Añade aquí observaciones sobre facturas, proveedores o incidencias de esta acción..."
                 ></textarea>
             </div>
 
@@ -347,11 +347,11 @@ export const CostEditor: React.FC<CostEditorProps> = ({ action, existingInput, o
                             </div>
                         </div>
 
-                        {/* 3. BUDGET DEVIATION HIGHLIGHTER */}
+                        {/* 3. BUDGET DEVIATION HIGHLIGHTER WITH SPECIFIC ALERTS */}
                         <div className={`p-4 rounded-lg border-2 shadow-sm flex flex-col items-center text-center transition-colors ${
-                            preview.desviacion > 0.01 
+                            preview.tipoDesviacion === 'DEFECTO'
                             ? 'bg-blue-50 border-blue-200 text-blue-800'  // Under budget (Savings)
-                            : preview.desviacion < -0.01
+                            : preview.tipoDesviacion === 'EXCESO'
                             ? 'bg-rose-50 border-rose-200 text-rose-800'  // Over budget (Loss)
                             : 'bg-emerald-50 border-emerald-200 text-emerald-800' // Perfect
                         }`}>
@@ -360,15 +360,15 @@ export const CostEditor: React.FC<CostEditorProps> = ({ action, existingInput, o
                                 {formatCurrency(Math.abs(preview.desviacion))}
                              </div>
                              <div className="flex items-center gap-1.5 text-sm font-bold bg-white/50 px-3 py-1 rounded-full">
-                                 {preview.desviacion > 0.01 ? (
+                                 {preview.tipoDesviacion === 'DEFECTO' ? (
                                      <>
                                         <TrendingUp className="w-4 h-4" />
-                                        <span>Falta por gastar</span>
+                                        <span>Defecto de Justificación</span>
                                      </>
-                                 ) : preview.desviacion < -0.01 ? (
+                                 ) : preview.tipoDesviacion === 'EXCESO' ? (
                                      <>
                                         <TrendingDown className="w-4 h-4" />
-                                        <span>Exceso de Gasto</span>
+                                        <span>Exceso de Justificación</span>
                                      </>
                                  ) : (
                                      <>
@@ -378,6 +378,27 @@ export const CostEditor: React.FC<CostEditorProps> = ({ action, existingInput, o
                                  )}
                              </div>
                         </div>
+
+                        {/* EXPLICIT ALERT BOX BASED ON DEVIATION TYPE */}
+                        {preview.tipoDesviacion === 'DEFECTO' && (
+                            <div className="bg-blue-100 border-l-4 border-blue-500 text-blue-800 p-3 rounded text-xs flex items-start gap-2 animate-in fade-in">
+                                <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                <div>
+                                    <span className="font-bold block mb-1">Alerta: Defecto de Justificación</span>
+                                    El importe justificado es inferior al máximo financiable. Se perderá subvención por valor de <strong>{formatCurrency(preview.desviacion)}</strong>. Revisa si faltan facturas por imputar.
+                                </div>
+                            </div>
+                        )}
+
+                        {preview.tipoDesviacion === 'EXCESO' && (
+                            <div className="bg-rose-100 border-l-4 border-rose-500 text-rose-800 p-3 rounded text-xs flex items-start gap-2 animate-in fade-in">
+                                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                <div>
+                                    <span className="font-bold block mb-1">Alerta: Exceso de Justificación</span>
+                                    El importe justificado supera el máximo financiable. La empresa asume un sobrecoste de <strong>{formatCurrency(Math.abs(preview.desviacion))}</strong> no subvencionable.
+                                </div>
+                            </div>
+                        )}
 
                         {/* 4. Estado General */}
                         <div className={`text-center text-xs font-bold py-1 px-3 rounded-full w-fit mx-auto ${

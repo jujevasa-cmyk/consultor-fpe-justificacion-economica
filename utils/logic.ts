@@ -64,6 +64,14 @@ export const calculateJustification = (
   } else if (exceededBudget) {
     estado = 'EXCEDIDO';
   }
+  
+  // Determine Type of Deviation (Textual)
+  let tipoDesviacion: JustificationResult['tipoDesviacion'] = 'CUADRADO';
+  if (desviacion > 0.01) {
+      tipoDesviacion = 'DEFECTO'; // Under-justified (Money left on table)
+  } else if (desviacion < -0.01) {
+      tipoDesviacion = 'EXCESO'; // Over-justified (Company loss)
+  }
 
   // 6. Treasury
   const pendientePago = Math.max(0, ctj - (input.importePagado || 0));
@@ -78,6 +86,7 @@ export const calculateJustification = (
     costeTotalJustificado: ctj,
     desviacion,
     estado,
+    tipoDesviacion,
     pendientePago
   };
 };

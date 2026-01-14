@@ -38,7 +38,7 @@ export interface JustificationInput {
   };
   costesIndirectos: number; // B9
   importePagado: number; // NEW: Amount actually paid for Treasury calculation
-  notas?: string; // NEW: Free text notes field
+  observaciones?: string; // UPDATED: Renamed from notas
 }
 
 // Calculated results for display and validation
@@ -52,6 +52,7 @@ export interface JustificationResult {
   costeTotalJustificado: number; // Direct + Indirect (Input)
   desviacion: number; // Positive means under budget, Negative means exceeded
   estado: 'OK' | 'AJUSTE_INDIRECTOS' | 'EXCEDIDO' | 'AJUSTE_Y_EXCEDIDO';
+  tipoDesviacion: 'DEFECTO' | 'EXCESO' | 'CUADRADO'; // Explicit deviation type
   pendientePago: number; // Justified - Paid
 }
 

@@ -58,7 +58,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded }) => {
                 };
                 
                 // Generate a consistent ID if not provided, based on Exp + AF to allow merging
-                // This ensures re-imports map correctly if the ID wasn't explicitly in the excel
                 if (!row['ID'] && action.expediente && action.codigoAccion) {
                     action.id = `${action.expediente}-${action.codigoAccion}`.replace(/\s+/g, '');
                 }
@@ -66,17 +65,15 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded }) => {
                 parsedActions.push(action);
 
                 // --- Restore Justification Inputs (if columns exist) ---
-                // We check for "A1. Personal" or "Situación" to see if this row has justification data
                 if (row['Situación'] || row['A1. Personal'] !== undefined) {
                     const situacion = (row['Situación'] as SituacionAccion) || 'PENDIENTE';
                     const alumnosFinalizados = row['Alumnos Finalizados'] !== undefined ? parseFloat(row['Alumnos Finalizados']) : action.alumnosConcedidos;
                     
-                    // Only create input if there is meaningful data or explicit status change
                     const input: JustificationInput = {
                         actionId: action.id,
                         situacion: situacion,
                         alumnosFinalizados: isNaN(alumnosFinalizados) ? action.alumnosConcedidos : alumnosFinalizados,
-                        fechaInicioReal: row['Fecha Inicio Real'], // Restore correct dates if edited
+                        fechaInicioReal: row['Fecha Inicio Real'], 
                         fechaFinReal: row['Fecha Fin Real'],
                         costesDirectos: {
                             personalFormador: parseFloat(row['A1. Personal']) || 0,
@@ -90,8 +87,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded }) => {
                             otros: parseFloat(row['A9. Otros Costes Directos']) || 0,
                         },
                         costesIndirectos: parseFloat(row['B9. Indirectos Justificados']) || 0,
-                        importePagado: parseFloat(row['Importe Pagado']) || 0, // Restore payment data
-                        notas: row['Notas'] || '' // Restore notes
+                        importePagado: parseFloat(row['Importe Pagado']) || 0, 
+                        observaciones: row['Observaciones'] || row['Notas'] || '' // Supports both old 'Notas' and new 'Observaciones'
                     };
                     parsedInputs[action.id] = input;
                 }
@@ -112,7 +109,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded }) => {
             const cols = line.split(';'); 
             const getVal = (idx: number) => cols[idx]?.trim().replace(/"/g, '') || '';
     
-            // Helper to find index by header name
             const findCol = (searchTerms: string[], defaultIdx: number) => {
                const idx = headers.findIndex(h => searchTerms.some(term => h.includes(term)));
                return idx >= 0 ? idx : defaultIdx;
@@ -122,7 +118,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded }) => {
             const codigo = getVal(findCol(['AF', 'CODIGO'], 4));
     
             return {
-              // Generate ID consistent with Excel import logic for stability
               id: (expediente && codigo) ? `${expediente}-${codigo}`.replace(/\s+/g, '') : `GEN-${idx}`,
               expediente: expediente,
               empresa: getVal(findCol(['EMPRESA'], 2)),
@@ -143,7 +138,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded }) => {
              return emp && emp !== 'ALUM.' && emp !== 'ALUM' && emp !== 'EMPRESA';
           });
     
-          onDataLoaded(parsedData); // No inputs parsed from basic CSV
+          onDataLoaded(parsedData);
         };
         reader.readAsText(file);
     }
@@ -166,7 +161,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded }) => {
         <div>
           <h3 className="text-lg font-semibold text-slate-800">Cargar Archivo</h3>
           <p className="text-slate-500 text-sm mt-1 max-w-sm mx-auto">
-            Admite <strong>CSV Original</strong> o el <strong>Excel de Informe (.xlsx)</strong> exportado por esta plataforma (para restaurar copia de seguridad).
+            Admite <strong>CSV Original</strong> o el <strong>Excel de Informe (.xlsx)</strong> exportado por esta plataforma.
           </p>
         </div>
         <div className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition shadow-sm font-medium">

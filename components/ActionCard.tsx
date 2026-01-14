@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit2, BrainCircuit } from 'lucide-react';
+import { Edit2, BrainCircuit, CheckCircle2, AlertTriangle, AlertCircle } from 'lucide-react';
 import { TrainingAction, JustificationInput, JustificationResult } from '../types';
 import { calculateJustification, formatCurrency } from '../utils/logic';
 
@@ -26,6 +26,16 @@ export const ActionCard: React.FC<ActionCardProps> = ({ action, input, onEdit, o
     }
   };
 
+  const getStatusIcon = (status: JustificationResult['estado']) => {
+    switch(status) {
+      case 'OK': return <CheckCircle2 className="w-3 h-3" />;
+      case 'AJUSTE_INDIRECTOS': return <AlertTriangle className="w-3 h-3" />;
+      case 'EXCEDIDO': 
+      case 'AJUSTE_Y_EXCEDIDO': return <AlertCircle className="w-3 h-3" />;
+      default: return null;
+    }
+  };
+
   const statusInfo = result ? getStatusColor(result.estado) : 'bg-white border-gray-200';
 
   return (
@@ -39,8 +49,9 @@ export const ActionCard: React.FC<ActionCardProps> = ({ action, input, onEdit, o
           </div>
         </div>
         {result && (
-            <div className={`px-2 py-1 rounded text-[10px] font-bold uppercase text-center min-w-[80px] ${statusInfo}`}>
-                {result.estado.replace(/_/g, ' ')}
+            <div className={`px-2 py-1 rounded text-[10px] font-bold uppercase flex items-center gap-1 min-w-[80px] justify-center ${statusInfo}`}>
+                {getStatusIcon(result.estado)}
+                <span>{result.estado.replace(/_/g, ' ')}</span>
             </div>
         )}
       </div>
